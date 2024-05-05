@@ -1,15 +1,9 @@
-import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-  Logger,
-  NotFoundException,
-  OnModuleInit,
-} from '@nestjs/common';
+import { HttpStatus, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PrismaClient } from '@prisma/client';
 import { PaginationDto } from 'src/common';
+import { RpcException } from '@nestjs/microservices';
 
 @Injectable()
 export class ProductsService extends PrismaClient implements OnModuleInit {
@@ -20,11 +14,15 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
   }
 
   create(createProductDto: CreateProductDto) {
-    const product = this.product.findUnique({
+    const product = this.product.findFirst({
       where: { name: createProductDto.name },
     });
+    console.log(product);
     if (product) {
-      throw new HttpException('Product already exists ', HttpStatus.CONFLICT);
+      throw new RpcException({
+        status: HttpStatus.CONFLICT,
+        message: 'Product with the same name already exists',
+      });
     }
     return this.product.create({ data: createProductDto });
   }
@@ -52,7 +50,11 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
       where: { id: id, available: true },
     });
     if (!productId) {
-      throw new NotFoundException(`Product not found`);
+      //throw new NotFoundException('Product not found);
+      throw new RpcException({
+        status: HttpStatus.BAD_REQUEST,
+        message: `Product not found`,
+      });
     }
     return productId;
   }
